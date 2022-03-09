@@ -5,52 +5,51 @@ local gfx <const> = playdate.graphics
 local cellSize = 4
 local rows = playdate.display.getHeight() / cellSize
 local cols = playdate.display.getWidth() / cellSize
+maxIterations = 150
 
-local cells = table.create(rows, 0)
-local iterations = {}
+cells = table.create(rows, 0)
+iterations = table.create(maxIterations, 0)
 
-local function createCell(row, col, alive)
-	return {
-		row = row,
-		col = col,
-		x = (col - 1) * cellSize,	
-		y = (row - 1) * cellSize,
-		w = cellSize,
-		h = cellSize,
-		alive = alive,
-		draw = function(self)
-			if self.alive then
-				gfx.fillRect(self.x, self.y, self.w, self.h)
-			end
-		end,
-		tick = function(self)
-			local liveNeighbors = 0
-			for nRow = math.max(self.row - 1, 1), math.min(self.row + 1, rows) do
-				for nCol = math.max(self.col - 1, 1), math.min(self.col + 1, cols) do
-					if nRow ~= self.row or nCol ~= self.col then
-						liveNeighbors += cells[nRow][nCol].alive and 1 or 0
-					end
-				end
-			end
-			
-			if not self.alive then
-				-- Any dead cell with three live neighbors becomes a live cell.
-				self.alive = liveNeighbors == 3
-			else
-				-- Any live cell with two or three live neighbors survives.
-				-- All other live cells die in the next generation. Similarly, all other dead cells stay dead.
-				self.alive = liveNeighbors == 2 or liveNeighbors == 3
+local function drawCell(row, col)
+	if cells[row][col] then
+		local x = (col - 1) * cellSize
+		local y = (row - 1) * cellSize
+		gfx.fillRect(x, y, cellSize, cellSize)
+	end
+end
+
+local function tickCell(row, col)
+	local liveNeighbors = 0
+	local alive = cells[row][col]
+	
+	for nRow = math.max(row - 1, 1), math.min(row + 1, rows) do
+		for nCol = math.max(col - 1, 1), math.min(col + 1, cols) do
+			if nRow ~= row or nCol ~= col then
+				liveNeighbors += cells[nRow][nCol] and 1 or 0
 			end
 		end
-	}
+	end
+	
+	if not alive then
+		-- Any dead cell with three live neighbors becomes a live cell.
+		cells[row][col] = liveNeighbors == 3
+	else
+		-- Any live cell with two or three live neighbors survives.
+		-- All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+		cells[row][col] = liveNeighbors == 2 or liveNeighbors == 3
+	end
 end
 
 local function advanceSimulation()
+	if #iterations == maxIterations then
+		table.remove(iterations, 1)
+	end
+	
 	table.insert(iterations, table.deepcopy(cells))
 	
 	for row = 1, rows do
 		for col = 1, cols do
-			cells[row][col]:tick()
+			tickCell(row, col)
 		end
 	end
 end
@@ -62,10 +61,11 @@ end
 local function setUpGame()
 	for row = 1, rows do
 		cells[row] = table.create(cols, 0)
+		
 		for col = 1, cols do
-			local cell = createCell(row, col, math.random() > 0.69)
-			cell:draw()
-			cells[row][col] = cell
+			local alive = math.random() > 0.69
+			cells[row][col] = alive
+			drawCell(row, col)
 		end
 	end
 end
@@ -86,7 +86,7 @@ function playdate.update()
 		gfx.clear()
 		for row = 1, rows do
 			for col = 1, cols do
-				cells[row][col]:draw()
+				drawCell(row, col)
 			end
 		end
 	end
