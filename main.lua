@@ -59,11 +59,14 @@ local function reverseSimulation()
 end
 
 local function setUpGame()
+	local z = math.random()
+	local modifier = math.random() * 0.5
 	for row = 1, rows do
 		cells[row] = table.create(cols, 0)
 		
 		for col = 1, cols do
-			local alive = math.random() > 0.69
+			local noise = playdate.graphics.perlin(row/rows + modifier, col/cols + modifier, z + modifier, 8, 4, math.random())
+			local alive = noise > 0.5
 			cells[row][col] = alive
 			drawCell(row, col)
 		end
